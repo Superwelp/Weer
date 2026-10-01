@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="nl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>RainRadar PRO</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root{--b1:#0a1430;--b2:#15407a;--cd:rgba(255,255,255,.09);--bd:rgba(255,255,255,.16);--tx:#f2f7ff;--mu:#a9bcd9;--ac:#2ee6d6;--ac2:#8b7bff}
+:root[data-t=light]{--b1:#e9f4ff;--b2:#c4e4f4;--cd:rgba(255,255,255,.72);--bd:rgba(20,60,120,.12);--tx:#0e2347;--mu:#4f6a90;--ac:#0793a8;--ac2:#6a55e0}
+*{box-sizing:border-box;margin:0}html,body{height:100%}
+body{font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:var(--tx);background:linear-gradient(160deg,var(--b1),var(--b2)) fixed;padding-top:env(safe-area-inset-top,0)}
+main{max-width:760px;margin:auto;padding:14px 14px 100px}
+.v{display:none;animation:in .35s}.v.on{display:block}@keyframes in{from{opacity:0;transform:translateY(8px)}}
+.c{background:var(--cd);border:1px solid var(--bd);border-radius:22px;padding:16px;margin-bottom:12px;backdrop-filter:blur(16px);box-shadow:0 8px 30px rgba(0,0,0,.18)}
+.g{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.g .c{padding:12px;margin:0;text-align:center}
+h2{font-size:15px;margin-bottom:10px}small,.mu{color:var(--mu);font-size:12px}
+.big{font-size:72px;font-weight:200;line-height:1}.ico{font-size:64px;animation:fl 4s ease-in-out infinite}@keyframes fl{50%{transform:translateY(-6px)}}
+button,input,select{font:inherit;color:inherit}
+.btn{background:linear-gradient(90deg,var(--ac),var(--ac2));color:#06122b;border:0;border-radius:14px;padding:12px 18px;font-weight:700;cursor:pointer;transition:transform .15s}.btn:active{transform:scale(.96)}
+.gh{background:var(--cd);border:1px solid var(--bd);border-radius:12px;padding:8px 12px;cursor:pointer}
+input,select{background:var(--cd);border:1px solid var(--bd);border-radius:14px;padding:12px;width:100%}
+.row{display:flex;gap:8px;align-items:center;justify-content:space-between}
+.hs{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px}.hs div{min-width:62px;text-align:center;background:var(--cd);border-radius:14px;padding:8px 4px;font-size:13px}
+.ind{background:linear-gradient(120deg,rgba(46,230,214,.25),rgba(139,123,255,.25));border-color:var(--ac)}.ind b{font-size:22px}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;justify-content:space-around;padding:8px 6px calc(8px + env(safe-area-inset-bottom,0));background:var(--cd);backdrop-filter:blur(20px);border-top:1px solid var(--bd)}
+nav button{background:0;border:0;font-size:11px;color:var(--mu);display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;padding:4px 10px;border-radius:12px}nav button span{font-size:22px}nav .on{color:var(--ac)}
+#map{height:60vh;border-radius:22px;border:1px solid var(--bd)}
+.sk{height:90px;border-radius:22px;margin-bottom:12px;background:linear-gradient(90deg,var(--cd),rgba(255,255,255,.2),var(--cd));background-size:200% 100%;animation:sh 1.2s infinite}@keyframes sh{to{background-position:-200% 0}}
+.d{display:grid;grid-template-columns:70px 36px 1fr 52px;gap:8px;align-items:center;padding:7px 0;font-size:13px;border-bottom:1px solid var(--bd)}
+.bar{height:6px;border-radius:3px;background:linear-gradient(90deg,#4ea8ff,#ffb35c)}
+#ob{position:fixed;inset:0;z-index:999;background:linear-gradient(160deg,var(--b1),var(--b2));display:flex;align-items:center;justify-content:center;padding:24px;text-align:center}
+#ob>div{max-width:380px}#sr div{padding:10px;border-bottom:1px solid var(--bd);cursor:pointer}
+#err{display:none;background:#ff5d6c33;border:1px solid #ff5d6c;border-radius:14px;padding:10px;margin-bottom:10px;font-size:13px}
+.lg{display:flex;gap:6px;align-items:center;font-size:12px;margin-top:8px;flex-wrap:wrap}.lg i{width:26px;height:8px;border-radius:4px;display:inline-block}
+@media(prefers-reduced-motion:reduce){*{animation:none!important}}
+</style></head><body>
+<div id="ob"><div><div class="ico">🌦️</div><h1 style="margin:10px 0">RainRadar PRO</h1><p class="mu" style="margin-bottom:18px">Jouw weer, tot op de minuut. Zie direct wanneer het gaat regenen en wanneer het weer droog wordt.</p><button class="btn" style="width:100%;margin-bottom:10px" onclick="geo()">📍 Gebruik mijn locatie</button><input id="ob-q" placeholder="Of zoek een plaats of postcode…" oninput="srch(this.value,'ob-r')"><div id="ob-r" style="text-align:left;margin-top:6px"></div><small style="display:block;margin-top:14px">Je locatie wordt alleen met jouw toestemming gebruikt.</small></div></div>
+<main>
+<div id="err"></div>
+<section id="home" class="v on"></section>
+<section id="radar" class="v"><div class="c"><div class="row"><b>Regenradar</b><button class="gh" onclick="geo()">📍</button></div><small id="rt">Laden…</small><div id="map"></div><div class="row" style="margin-top:10px"><button class="gh" id="pp" onclick="play()">▶</button><input type="range" id="sl" min="0" value="0" style="padding:0" oninput="show(+this.value)"></div><div class="lg"><i style="background:#7fd1ff"></i>Licht<i style="background:#2f6bff"></i>Matig<i style="background:#ffb800"></i>Zwaar<i style="background:#ff2d55"></i>Extreem <small>· sneeuw: blauwwit</small></div><small>Radargegevens: RainViewer. Bij ontbrekende data wordt niets gesimuleerd.</small></div></section>
+<section id="fc" class="v"></section>
+<section id="fv" class="v"></section>
+<section id="st" class="v"></section>
+</main>
+<nav><button class="on" data-v="home"><span>🏠</span>Home</button><button data-v="radar"><span>🛰️</span>Radar</button><button data-v="fc"><span>📅</span>Verwachting</button><button data-v="fv"><span>⭐</span>Favorieten</button><button data-v="st"><span>⚙️</span>Instellingen</button></nav>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+const $=s=>document.querySelector(s),LS=localStorage;
+const sg=(k,d)=>{try{return JSON.parse(LS.getItem(k))??d}catch{return d}},ss=(k,v)=>{try{LS.setItem(k,JSON.stringify(v))}catch{}};
+let S={theme:'auto',notify:false,lead:15,sens:.1,...sg('rr_s',{})},favs=sg('rr_f',[]),loc=sg('rr_l',null),D=null,map,lay,fr=[],fi=0,tm,host='';
+const WC={0:['☀️','Helder'],1:['🌤️','Overwegend helder'],2:['⛅','Half bewolkt'],3:['☁️','Bewolkt'],45:['🌫️','Mist'],48:['🌫️','Rijpmist'],51:['🌦️','Lichte motregen'],53:['🌦️','Motregen'],55:['🌧️','Zware motregen'],56:['🌧️','IJzel'],57:['🌧️','IJzel'],61:['🌦️','Lichte regen'],63:['🌧️','Regen'],65:['🌧️','Zware regen'],66:['🌧️','Ijsregen'],67:['🌧️','Ijsregen'],71:['🌨️','Lichte sneeuw'],73:['🌨️','Sneeuw'],75:['❄️','Zware sneeuw'],77:['❄️','Korrelsneeuw'],80:['🌦️','Lichte buien'],81:['🌧️','Buien'],82:['⛈️','Zware buien'],85:['🌨️','Sneeuwbuien'],86:['❄️','Zware sneeuwbuien'],95:['⛈️','Onweer'],96:['⛈️','Onweer met hagel'],99:['⛈️','Zwaar onweer met hagel']};
+const wc=c=>WC[c]||['🌡️','Onbekend'],dirs=['N','NO','O','ZO','Z','ZW','W','NW'],dn=d=>dirs[Math.round(d/45)%8];
+const hm=t=>t.slice(11,16),dag=t=>new Date(t+'T12:00').toLocaleDateString('nl-NL',{weekday:'short',day:'numeric'});
+function theme(){document.documentElement.dataset.t=S.theme==='auto'?(matchMedia('(prefers-color-scheme:light)').matches?'light':'dark'):S.theme}
+function err(m){const e=$('#err');e.textContent=m;e.style.display=m?'block':'none'}
+async function W(l,force){const k='rr_c_'+l.lat.toFixed(2)+'_'+l.lon.toFixed(2),c=sg(k,null);if(c&&!force&&Date.now()-c.t<3e5)return c;
+ const u=`https://api.open-meteo.com/v1/forecast?latitude=${l.lat}&longitude=${l.lon}&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,pressure_msl,wind_speed_10m,wind_direction_10m,precipitation&minutely_15=precipitation&hourly=temperature_2m,precipitation_probability,precipitation,weather_code,wind_speed_10m,uv_index&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,wind_speed_10m_max,sunshine_duration,sunrise,sunset,uv_index_max&timezone=auto&forecast_days=14&forecast_minutely_15=24&past_minutely_15=8&wind_speed_unit=kmh`;
+ try{const r=await fetch(u);if(!r.ok)throw 0;const d=await r.json();d.t=Date.now();ss(k,d);return d}catch(e){if(c)return c;throw e}}
+function rain(d){const m=d.minutely_15,v=m.precipitation.map(x=>x*4),th=S.sens;let i=0;m.time.forEach((t,j)=>{if(t<=d.current.time)i=j});
+ const lab=x=>x<2.5?'licht':x<7.6?'matig':'zwaar';
+ if(v[i]>=th){const e=v.findIndex((x,j)=>j>i&&x<th);return{wet:true,i,v,mins:e<0?null:(e-i)*15,txt:e<0?`Het regent (${lab(v[i])}) — de komende 6 uur blijft het nat`:`Het regent (${lab(v[i])}) — droog over ca. ${(e-i)*15} min`,big:e<0?'Nat':(e-i)*15+' min'}}
+ const s=v.findIndex((x,j)=>j>i&&x>=th);return{wet:false,i,v,mins:s<0?null:(s-i)*15,txt:s<0?'Droog voor de komende 6 uur':`Droog — regen (${lab(Math.max(...v.slice(s)))}) over ca. ${(s-i)*15} min`,big:s<0?'Droog':(s-i)*15+' min'}}
+function chart(d,r){const m=d.minutely_15,mx=Math.max(2,...r.v),w=12;let s=`<svg viewBox="0 0 ${w*m.time.length} 130" style="width:100%"><line x1="0" x2="${w*m.time.length}" y1="100" y2="100" stroke="var(--bd)"/>`;
+ r.v.forEach((x,j)=>{const h=Math.max(2,x/mx*90),p=j<r.i;s+=`<rect x="${j*w+1}" y="${100-h}" width="${w-2}" height="${h}" rx="3" fill="${p?'#8b7bff':x>=S.sens?'#4ea8ff':'rgba(120,200,255,.25)'}"><title>${hm(m.time[j])} — ${x.toFixed(1)} mm/u ${p?'(afgelopen)':'(verwacht)'}</title></rect>`;if(j%4==0)s+=`<text x="${j*w}" y="120" font-size="8" fill="var(--mu)">${hm(m.time[j])}</text>`});
+ return s+`<line x1="${r.i*w+w/2}" x2="${r.i*w+w/2}" y1="4" y2="100" stroke="var(--ac)" stroke-dasharray="3"/></svg><small>Paars = afgelopen · blauw = verwacht (modelverwachting, geen zekerheid)</small>`}
+function dry(d){const h=d.hourly,i=h.time.findIndex(t=>t>=d.current.time.slice(0,13)),o=[];let st=null;for(let j=i;j<i+24;j++){const dr=h.precipitation[j]<.1;if(dr&&st==null)st=j;if((!dr||j==i+23)&&st!=null){if(j-st>=2)o.push(hm(h.time[st])+'–'+hm(h.time[j]));st=null}}return o}
+function adv(d,r){const c=d.current,n=r.v.slice(r.i,r.i+4),dr=Math.max(...n)<.1,x=[];
+ x.push(['🌂',Math.max(...r.v.slice(r.i,r.i+8))>=S.sens?'Paraplu nodig':'Geen paraplu nodig']);
+ x.push(['🚲',dr&&c.wind_speed_10m<35?'Fietsweer: komend uur droog':'Fietsen: let op regen/wind']);
+ x.push(['🏃',dr&&c.temperature_2m>2&&c.temperature_2m<24&&c.wind_speed_10m<30?'Prima hardloopweer':'Hardlopen: minder ideaal']);
+ const w=dry(d);x.push(['🚶',w.length?'Wandelen: droog '+w[0]:'Wandelen: geen lang droog moment']);return x}
+async function load(force){if(!loc)return;$('#home').innerHTML='<div class="sk" style="height:200px"></div><div class="sk"></div><div class="sk"></div>';err('');
+ try{D=await W(loc,force);render();$('#ob').style.display='none'}catch{err('Kan geen weerdata ophalen. Controleer je verbinding en probeer opnieuw.');$('#home').innerHTML=D?'':'<div class="c" style="text-align:center">📡<br>Geen gegevens beschikbaar.<br><br><button class="btn" onclick="load(true)">Opnieuw proberen</button></div>'}}
+function render(){if(!D)return;const c=D.current,r=rain(D),[ic,tx]=wc(c.weather_code),dl=D.daily,fav=favs.some(f=>f.name==loc.name),a=adv(D,r);
+ $('#home').innerHTML=`<div class="row" style="margin-bottom:10px"><div><b style="font-size:20px">${loc.name}</b><br><small>${new Date().toLocaleDateString('nl-NL',{weekday:'long',day:'numeric',month:'long'})} · ${hm(c.time)}</small></div><div><button class="gh" onclick="tg()">${fav?'★':'☆'}</button> <button class="gh" onclick="shr()">📤</button> <button class="gh" onclick="load(true)">⟳</button></div></div>
+ <input placeholder="🔍 Zoek plaats of postcode" oninput="srch(this.value,'sr')" style="margin-bottom:6px"><div id="sr"></div>
+ <div class="c row"><div><div class="big">${Math.round(c.temperature_2m)}°</div><div>${tx}</div><small>Voelt als ${Math.round(c.apparent_temperature)}° · H ${Math.round(dl.temperature_2m_max[0])}° L ${Math.round(dl.temperature_2m_min[0])}°</small></div><div class="ico">${ic}</div></div>
+ <div class="c ind"><small>REGENINDICATOR</small><div><b>${r.big}</b> <span class="mu">${r.wet?'tot droog':'tot regen'}</span></div><div>${r.txt}</div></div>
+ <button class="btn" style="width:100%;margin-bottom:12px" onclick="nav('radar')">🛰️ Open regenradar</button>
+ <div class="c"><h2>Neerslag komende 6 uur</h2>${chart(D,r)}</div>
+ <div class="c"><h2>Komende uren</h2><div class="hs">${D.hourly.time.map((t,j)=>({t,j})).filter(o=>o.t>=c.time.slice(0,13)).slice(0,24).map(o=>`<div>${hm(o.t)}<br><span style="font-size:22px">${wc(D.hourly.weather_code[o.j])[0]}</span><br><b>${Math.round(D.hourly.temperature_2m[o.j])}°</b><br><small>💧${D.hourly.precipitation_probability[o.j]??0}%</small></div>`).join('')}</div></div>
+ <div class="g"><div class="c">💨<br><b>${Math.round(c.wind_speed_10m)} km/u</b><br><small>${dn(c.wind_direction_10m)}</small><div style="display:inline-block;transform:rotate(${c.wind_direction_10m+180}deg);transition:.6s">⬆️</div></div><div class="c">🌡️<br><b>${Math.round(c.apparent_temperature)}°</b><br><small>gevoel</small></div><div class="c">💧<br><b>${c.relative_humidity_2m}%</b><br><small>vocht</small></div><div class="c">🧭<br><b>${Math.round(c.pressure_msl)}</b><br><small>hPa</small></div><div class="c">☀️<br><b>${Math.round(dl.uv_index_max[0])}</b><br><small>UV max</small></div><div class="c">🌅<br><b>${hm(dl.sunrise[0])}</b><br><small>op · ${hm(dl.sunset[0])} onder</small></div></div>
+ <div class="c" style="margin-top:12px"><h2>Slim advies</h2>${a.map(x=>`<div>${x[0]} ${x[1]}</div>`).join('')}</div>
+ <div class="c"><h2>Eerstvolgende droge periodes</h2>${dry(D).join(' · ')||'Geen droge periode van 2+ uur in de komende 24 uur'}</div>
+ <div class="c"><h2>Waarschuwingen</h2>${warn(D).map(x=>`<div>${x}</div>`).join('')||'<small>Geen waarschuwingen.</small>'}</div>
+ <small>Laatst bijgewerkt: ${new Date(D.t).toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'})} · Bron: Open-Meteo (model) · Verwachtingen zijn geen zekerheid</small>`;
+ fcR();favR()}
+function warn(d){const o=[],h=d.hourly,i=h.time.findIndex(t=>t>=d.current.time.slice(0,13)),n=h.weather_code.slice(i,i+24);
+ if(n.some(c=>c>=95))o.push('⚡ Kans op onweer in de komende 24 uur');if(n.some(c=>(c>=71&&c<=77)||c==85||c==86))o.push('❄️ Sneeuw verwacht');if(n.some(c=>c==96||c==99))o.push('🧊 Kans op hagel');if(d.daily.uv_index_max[0]>=6)o.push('☀️ Hoge UV-index: smeer je in');if(Math.max(...h.wind_speed_10m.slice(i,i+24))>50)o.push('🌬️ Harde wind verwacht');return o}
+function fcR(){const dl=D.daily,t=dl.time;
+ $('#fc').innerHTML=`<div class="c"><h2>Vandaag vs morgen</h2><div class="row"><div>Vandaag ${wc(dl.weather_code[0])[0]}<br><b>${Math.round(dl.temperature_2m_max[0])}°</b> · 💧${dl.precipitation_probability_max[0]}%</div><div style="text-align:right">Morgen ${wc(dl.weather_code[1])[0]}<br><b>${Math.round(dl.temperature_2m_max[1])}°</b> · 💧${dl.precipitation_probability_max[1]}%</div></div><small>Verschil: ${(dl.temperature_2m_max[1]-dl.temperature_2m_max[0]).toFixed(0)}° max, ${(dl.precipitation_sum[1]-dl.precipitation_sum[0]).toFixed(1)} mm neerslag</small></div>
+ <div class="c"><h2>14 dagen</h2>${t.map((x,j)=>`<div class="d"><span>${dag(x)}</span><span style="font-size:22px">${wc(dl.weather_code[j])[0]}</span><span><div class="bar" style="opacity:${j>6?.5:1}"></div><small>${Math.round(dl.temperature_2m_min[j])}° / ${Math.round(dl.temperature_2m_max[j])}° · 💧${dl.precipitation_probability_max[j]}% ${dl.precipitation_sum[j].toFixed(1)}mm · 💨${Math.round(dl.wind_speed_10m_max[j])} · ☀️${(dl.sunshine_duration[j]/3600).toFixed(1)}u</small></span><small>${j>6?'onzeker':''}</small></div>`).join('')}<small>Na dag 7 neemt de onzekerheid duidelijk toe.</small></div>
+ <div class="c"><h2>Beste droge dagen</h2>${t.map((x,j)=>({x,p:dl.precipitation_sum[j]})).sort((a,b)=>a.p-b.p).slice(0,3).map(o=>`<div>✅ ${dag(o.x)} — ${o.p.toFixed(1)} mm</div>`).join('')}</div>`}
+async function favR(){$('#fv').innerHTML=`<div class="c"><h2>Favoriete locaties</h2>${favs.length?'<div id="fl"></div>':'<div style="text-align:center" class="mu">⭐<br>Nog geen favorieten. Open Home en tik op ☆.</div>'}</div>`;
+ for(const f of favs){const el=document.createElement('div');el.className='row';el.style.cssText='padding:10px 0;border-bottom:1px solid var(--bd)';el.innerHTML=`<b>${f.name}</b><small>laden…</small>`;$('#fl').append(el);
+  W(f).then(d=>{const r=rain(d);el.innerHTML=`<div><b>${f.name}</b><br><small>${r.txt}</small></div><div>${wc(d.current.weather_code)[0]} <b>${Math.round(d.current.temperature_2m)}°</b> <button class="gh">Open</button> <button class="gh" data-x>✕</button></div>`;el.querySelector('.gh').onclick=()=>{setLoc(f);nav('home')};el.querySelector('[data-x]').onclick=()=>{favs=favs.filter(z=>z.name!=f.name);ss('rr_f',favs);favR()}}).catch(()=>el.innerHTML=`<b>${f.name}</b><small>niet beschikbaar</small>`)}}
+function stR(){$('#st').innerHTML=`<div class="c"><h2>Weergave</h2><select onchange="S.theme=this.value;sv();theme()">${[['auto','Automatisch'],['dark','Donker'],['light','Licht']].map(o=>`<option value="${o[0]}" ${S.theme==o[0]?'selected':''}>${o[1]}</option>`).join('')}</select></div>
+ <div class="c"><h2>Regenalarm</h2><label class="row"><span>Meldingen voor regen, zware regen en onweer</span><input type="checkbox" style="width:auto" ${S.notify?'checked':''} onchange="notif(this)"></label><br>Melden ${S.lead} min vooraf<input type="range" min="5" max="60" step="5" value="${S.lead}" oninput="S.lead=+this.value;sv();this.previousSibling.textContent='Melden '+S.lead+' min vooraf'"><br><br>Gevoeligheid<select onchange="S.sens=+this.value;sv()">${[[.1,'Hoog (vanaf 0,1 mm/u)'],[.5,'Normaal (vanaf 0,5 mm/u)'],[2.5,'Laag (alleen matige/zware regen)']].map(o=>`<option value="${o[0]}" ${S.sens==o[0]?'selected':''}>${o[1]}</option>`).join('')}</select><small>Meldingen werken zolang de app geopend is. Een alarm is een verwachting, geen zekerheid.</small></div>
+ <div class="c"><h2>Gegevens</h2><button class="gh" onclick="Object.keys(LS).filter(k=>k.startsWith('rr_c_')).forEach(k=>LS.removeItem(k));load(true)">Cache wissen</button> <button class="gh" onclick="geo()">📍 Locatie vernieuwen</button></div>`}
+const sv=()=>ss('rr_s',S);
+async function notif(el){if(el.checked){const p=await Notification.requestPermission();S.notify=p==='granted';el.checked=S.notify}else S.notify=false;sv()}
+let last=0;setInterval(async()=>{if(!S.notify||!loc||Notification.permission!=='granted')return;try{const d=await W(loc,true),r=rain(d);if(!r.wet&&r.mins!=null&&r.mins<=S.lead&&Date.now()-last>36e5){last=Date.now();new Notification('🌧️ RainRadar PRO',{body:'Regen verwacht over ca. '+r.mins+' min (verwachting, geen zekerheid)'})}}catch{}},3e5);
+function tg(){const i=favs.findIndex(f=>f.name==loc.name);i<0?favs.push(loc):favs.splice(i,1);ss('rr_f',favs);render()}
+function setLoc(l){loc=l;ss('rr_l',l);$('#ob').style.display='none';load();if(map)map.setView([l.lat,l.lon],8)}
+function geo(){if(!navigator.geolocation)return err('Locatie wordt niet ondersteund.');navigator.geolocation.getCurrentPosition(p=>setLoc({name:'Mijn locatie',lat:p.coords.latitude,lon:p.coords.longitude}),()=>err('Geen toestemming voor locatie. Zoek handmatig een plaats.'),{timeout:10000})}
+let st;function srch(q,t){clearTimeout(st);const el=document.getElementById(t);if(q.length<2){el.innerHTML='';return}st=setTimeout(async()=>{try{const r=await(await fetch('https://geocoding-api.open-meteo.com/v1/search?count=6&language=nl&name='+encodeURIComponent(q))).json();el.innerHTML='';(r.results||[]).forEach(x=>{const d=document.createElement('div');d.textContent=x.name+(x.admin1?', '+x.admin1:'')+' ('+x.country_code+')';d.onclick=()=>setLoc({name:x.name,lat:x.latitude,lon:x.longitude});el.append(d)});if(!r.results)el.innerHTML='<small>Geen resultaten gevonden.</small>'}catch{el.innerHTML='<small>Zoeken mislukt.</small>'}},350)}
+function shr(){const c=document.createElement('canvas');c.width=c.height=1080;const x=c.getContext('2d'),g=x.createLinearGradient(0,0,1080,1080);g.addColorStop(0,'#0a1430');g.addColorStop(1,'#1f6fb5');x.fillStyle=g;x.fillRect(0,0,1080,1080);x.fillStyle='#fff';x.textAlign='center';x.font='60px system-ui';x.fillText(loc.name,540,160);x.font='260px system-ui';x.fillText(wc(D.current.weather_code)[0],540,480);x.font='200px system-ui';x.fillText(Math.round(D.current.temperature_2m)+'°',540,720);x.font='48px system-ui';x.fillText(rain(D).txt.slice(0,48),540,830);x.fillStyle='#2ee6d6';x.fillText('RainRadar PRO',540,980);const a=document.createElement('a');a.href=c.toDataURL('image/png');a.download='weer.png';a.click()}
+async function initMap(){if(!map){map=L.map('map').setView(loc?[loc.lat,loc.lon]:[52.1,5.3],loc?8:7);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(map);
+ try{const j=await(await fetch('https://api.rainviewer.com/public/weather-maps.json')).json();host=j.host;fr=[...j.radar.past,...(j.radar.nowcast||[])].map(f=>({...f,n:!!(j.radar.nowcast||[]).includes(f)}));$('#sl').max=fr.length-1;fi=j.radar.past.length-1;$('#sl').value=fi;show(fi)}catch{$('#rt').textContent='Radardata is nu niet beschikbaar. Er wordt niets gesimuleerd.'}}
+ setTimeout(()=>map.invalidateSize(),100)}
+function show(i){fi=i;if(!fr[i])return;if(lay)map.removeLayer(lay);lay=L.tileLayer(host+fr[i].path+'/256/{z}/{x}/{y}/2/1_1.png',{opacity:.7}).addTo(map);$('#sl').value=i;$('#rt').textContent=new Date(fr[i].time*1000).toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'})+(fr[i].n?' · verwachting':' · gemeten')}
+function play(){if(tm){clearInterval(tm);tm=null;$('#pp').textContent='▶';return}$('#pp').textContent='⏸';tm=setInterval(()=>show((fi+1)%fr.length),600)}
+function nav(v){document.querySelectorAll('.v').forEach(e=>e.classList.toggle('on',e.id==v));document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.v==v));if(v=='radar')initMap();if(v=='st')stR();if(v=='fv')favR();scrollTo(0,0)}
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>nav(b.dataset.v));
+theme();stR();if(loc){$('#ob').style.display='none';load()}
+</script></body></html>
